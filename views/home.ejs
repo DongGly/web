@@ -30,7 +30,8 @@
     </div>
 </div>
 <!---도서검색 템플릿-->
-<script type="x-handlebars-template" id="temp_books">
+<!--// 디브 북스 위에 로 들어감 <-도서검색결과-><div id="div_books" class="row"></div>-->
+<script type="x-handlebars-template" id="temp_books"> 
     {{#each documents}}
         <div class ="col-6 col-md-4 col-lg-2 mb-3">
             <div class ="card">
@@ -40,7 +41,7 @@
                 </div>
                 <div class="card-footer" style="font-szie:0.8rem;">
                     {{format price}}
-                    <i class="bi bi-cart-check float-end" book="{{book @this}}"></i>
+                    <i class="cart bi bi-cart-check float-end" book="{{book @this}}"></i>
                 </div>
             </div>
         </div>
@@ -66,23 +67,59 @@
     })
 </script>
 
-<script>
+<script type="module">
+
+    import {app} from "/javascripts/firebase.js";
+    import { getDatabase, ref, set, get}
+        from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+    const db=getDatabase(app)
+
     let query=$(frm.query).val();
     let page = 1;
 
     getBooks();
 
-    //장바구니를 클릭한 경우
-    $("#div_books").on("click",".bi", function(){
-        if(!sessionStorage.getItem("email")){
+    // //장바구니를 클릭한 경우
+    // $("#div_books").on("click",".bi", function(){
+    //     if(!sessionStorage.getItem("email")){
+    //         location.href="/users/login";
+    //     }
+    // })
+
+    // else{
+    //         //장바구니에 등록
+    //         //확인용 alert("....")
+    //         const book=JSON.parse($(this).attr("book"));
+    //         console.log(book);
+    //     }
+
+    //장바구니아이콘을 눌렀을떄
+    $("#div_books").on("click",".cart",async function(){
+        if(!sessionStorage.getItem("uid")){
             location.href="/users/login";
-        }else{
-            //장바구니에 등록
-            //확인용 alert("....")
-            const book=JSON.parse($(this).attr("book"));
-            console.log(book);
+            return
         }
-    })
+
+        //장바구니 있는지 체크
+        const book=JSON.parse($(this).attr("book"));
+        //console.log(book);
+
+
+        const ref_cart =ref(db,`cart/${sessionStorage.getItem("uid")}/${book.isbn}`);
+        const result = await get(ref_cart);
+        console.log(result.val());
+        //set(ref_cart, book);
+        if(result.val()){
+            alert("이미 장바구니에 있습니다.");
+        }else{
+            if(!confirm("장바구니에 추가 하시겠습니까?")) return;
+            set(ref_cart, book);
+            alert("장바구니에 추가되었습니다.");
+        }
+        
+    });
+
+
 
 
     //이미지를 클릭한 경우
