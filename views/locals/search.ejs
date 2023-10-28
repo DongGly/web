@@ -29,22 +29,52 @@
             <td>{{address_name}}</td>
             <td>{{phone}}</td>
             <td><button class="btn btn-primary location" x="{{x}}" y="{{y}}"">위치보기</button></td>
+            <td><button class="btn btn-primary btn-sm favorite" local="{{toString @this}}">즐겨찾기</button></td>
         </tr>
         {{/each}}
     </table>
 </script>
-
 <script>
+    Handlebars.registerHelper("toString",function(local){ //위에 즐겨찾기 td에 toString과 this에 local
+        return JSON.stringify(local);
+    });
+</script>
+
+<script type="module">
+    import {app} from "/javascripts/firebase.js";
+    import { getDatabase, ref, set, get} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-database.js";
+    const db=getDatabase(app)
+
     let query=$(frm.query).val();
     let page = 1;
     let size = 5;
     getLocals();
 
+    //즐겨찾기 버튼을 누른 경우
+    $("#div_locals").on("click",".favorite",async function(){ //async를 통해 아래 await을 사용할 수 있게 댐, 안쓸시 await을 못씀
+        //alert(".."); //확인용
+        if(sessionStorage.getItem("email")){
+            const local=JSON.parse($(this).attr("local"));
+            console.log(local);
+            const ref_favorite=ref(db,`favorite/${sessionStorage.getItem("uid")}/${local.id}`);
+            const snapshot = await get(ref_favorite);
+            //console.log(snapshot.val());
+            if(snapshot.val()){
+                alert("즐겨찾기에 이미 등록되었습니다.");
+            }else{
+                await set(ref_favorite, local);
+                alert("등록되었습니다.");
+            }
+        }else{
+            sessionStorage.setItem("target","/locals")
+            location.href="/users/login";
+        }
+    });
     // 위치보기 버튼을 클릭한경우
     $("#div_locals").on("click", "button",function(){
         let x=$(this).attr("x");
         let y=$(this).attr("y");
-        var container = document.getElementById('map');
+        var container = document.getElementById('map'); //지도를 담을 영역의 DOM 레퍼런스
         var options = { //지도를 생성할 때 필요한 기본 옵션
 	        center: new kakao.maps.LatLng(y, x), //지도의 중심좌표.
 	        level: 3 //지도의 레벨(확대, 축소 정도) 
