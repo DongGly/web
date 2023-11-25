@@ -4,15 +4,16 @@
         <div class="col">
             게시글 수 : <span id="total"></span> 건
         </div>
-        <div class="col text-end">
+        <div class="col text-end mb-2">
             <button id="btn-insert" class="btn btn-dark px-5">글쓰기</button>
         </div>
+
         <div id="div_posts"></div>
         <div id="pagination" class="pagination justify-content-center mt-5"></div>
     </div>
 </div>
 <script id="temp_posts" type="x-handlebars-template">
-    <table class="table">
+    <table class="table table-striped">
         {{#each .}}
         <tr>
             <td>{{index}}</td>
@@ -48,6 +49,7 @@
 
         // 현재 페이지 목록
         const rows = [];
+        
         snapshot.docs.forEach((doc, index) => {
             const start = (page-1) * size;
             const end = (page*size) - 1;
