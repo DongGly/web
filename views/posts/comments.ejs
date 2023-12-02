@@ -3,7 +3,7 @@
     <div id="div_insert" style="display: none;">
         <textarea id="txt_body" class="form-control" rows="5" placeholder="내용을 입력하세요."></textarea>
         <div class="text-end mt-2">
-            <button id="btn_insert" class="btn btn-primary btn-sm px-5">등록</button>
+            <button id="btn_insert" class="btn btn-primary btn-sm px-5">등록</button>            
         </div>
     </div>
     <div id="div_login">
@@ -15,6 +15,7 @@
         </div>
     </div>
     <div id="div_comments"></div>
+    <div id="pagination" class="pagination justify-content-center mt-5"></div>
 </div>
 <script id="temp_comments" type="x-handlebars-template">
     {{#each.}}
@@ -23,11 +24,23 @@
                 <small><b>{{email}}</b></small>
                 <small>{{date}}</small>
             </div>
-            <div>{{body}}</div>
-            <div class="text-end" style="{{fn_button email}}">
-                <button class="btn btn-success btn sm">수정</button>
-                <button class="btn btn-danger btn sm">삭제</button>
+            <div class="view{{id}}">
+                <div class="ellipsis2 body">{{body}}</div>
+                <div class="text-end mb-2" style="{{fn_button email}}">
+                    <button class="btn-update btn btn-success btn sm" id="{{id}}">수정</button>
+                    <button class="btn-delete btn btn-danger btn sm" id="{{id}}">삭제</button>
+                </div>
             </div>
+
+            <div class="edit{{id}}" style="display:none;">
+                <div>
+                    <textarea class="body form-control" row="5">{{body}}</textarea>
+                </div>
+                <div class="text-end mb-2" >
+                    <button class="btn-save btn btn-success btn sm" id="{{id}}"">저장</button>
+                    <button class="btn-cancel btn btn-danger btn sm" id="{{id}}">취소</button>
+                </div>
+            </div>    
         </div>
         <hr>
     {{/each}}
@@ -41,14 +54,67 @@
 </script>
 <script type="module">
     import { app } from "/javascripts/firebase.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, deleteDoc, doc, getDoc, setDoc} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
     import { query,orderBy,getDocs, where } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
     const db = getFirestore(app);
+
+    let total=0;
+    const size=3; //보여지는 댓글 수
+    let page=1;
 
     const pid="<%=id%>"
     if(sessionStorage.getItem("email")){
         $("#div_insert, #div_login").toggle();
     }
+
+    //바디를 누른 경우
+    $("#div_comments").on("click", ".btn-save",async function(){
+        $(this).toggleClass("ellipsis2");
+
+    });
+
+
+    //저장버튼을 누른 경우
+    $("#div_comments").on("click", ".btn-save",async function(){
+        const id=$(this).attr("id");
+        const edit=$(this).parent().parent();
+        const body=edit.find(".body").val();
+        if(confirm("수정하시겠습니까?")){
+            const snapshot=await getDoc(doc(db,`comments/${id}`));
+            //console.log(snapshot.data());
+            await setDoc(doc(db, `comments/${id}`),{...snapshot.data(), body});
+            alert("수정 성공");
+            getComments();
+        }
+    });
+
+    //삭제버튼을 누른 경우
+    $("#div_comments").on("click", ".btn-delete",async function(){
+        const id=$(this).attr("id");
+        //alert(id); //아이디 가져오는지 확인
+        if(confirm("삭제하시겠습니까?")){
+            await deleteDoc(doc(db,`/comments/${id}`));
+            alert("삭제성공");
+
+            getComments();
+        }
+    });
+
+    //수정버튼을 누른 경우
+    $("#div_comments").on("click", ".btn-update",async function(){
+        const id=$(this).attr("id");
+        $("#div_comments .view" + id).hide();
+        $("#div_comments .edit" + id).show();
+        
+    });
+
+    //취소버튼을 누른 경우
+    $("#div_comments").on("click", ".btn-cancel",async function(){
+        const id=$(this).attr("id");
+        $("#div_comments .view" + id).show();
+        $("#div_comments .edit" + id).hide();
+        
+    });
 
     $("#btn-login").on("click", function(){
         sessionStorage.setItem("target", `/posts/read?id=${pid}`);
@@ -67,7 +133,7 @@
             $("#txt_body").focus();
         }else{
            await addDoc(collection(db,'comments'),data);
-           alert("댓글등록완료")
+           alert("댓.글. 등.록. 완료.")
            $("#txt_body").val("");
            getComments();
         }
@@ -78,16 +144,42 @@
         const q = query(collection(db, 'comments'),where("pid", "==",pid), orderBy("date", "desc"));
         const snapshot = await getDocs(q);
 
-        const total=snapshot.docs.length;
+        // 전체 페이지 수 구하기
+        if(total != snapshot.docs.length) {
+            total = snapshot.docs.length;
+            const totalPages = Math.ceil(total/size);
+            $("#pagination").twbsPagination("changeTotalPages", totalPages, 1);
+        }
+
         $("#total").html(total);
         let rows=[];
-        snapshot.docs.forEach(doc=>{
-            const data={id:doc.id, ...doc.data()}
-            //console.log(data);
-            rows.push(data);
+        snapshot.docs.forEach((doc, index)=>{
+            const start=(page-1)*size; // 0
+            const end = (page*size)-1; // 2
+            if(index>=start && index<=end){  //여기서 조건에 만족하는 데이터 사용
+                const data={id:doc.id, ...doc.data()}
+                //console.log(data);
+                rows.push(data);
+            }
         });
+
         //console.log(rows);
         const temp=Handlebars.compile($("#temp_comments").html());
         $("#div_comments").html(temp(rows));
     }
+
+    $('#pagination').twbsPagination({
+        totalPages:10, //총 페이지 번호 수
+        visiblePages: 5, // 하단에서 한 번에 보여 지는 페이지 번호 수
+        startPage : 1, // 시작 시 표시되는 현재 페이지
+        initiateStartPageClick: false, // 플러그인이 시작 시 페이지 버튼 클릭 여부 (default : true) 
+        first : '<<', // 페이지네이션 버튼 중 처음으로 돌아가는 버튼에 쓰여 있는 텍스트
+        prev : '<', // 이전 페이지 버튼에 쓰여 있는 텍스트
+        next : '>', // 다음 페이지 버튼에 쓰여 있는 텍스트
+        last : '>>', // 페이지네이션 버튼 중 마지막으로 가는 버튼에 쓰여 있는 텍스트
+        onPageClick: function (event, clickPage) {
+            page=clickPage;
+            getComments(); 
+        }
+    });
 </script>

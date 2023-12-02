@@ -46,7 +46,7 @@
         if(confirm(`${id}번 게시글을 삭제하실래요?`)){
             //삭제작업
             await deleteDoc(doc(db, `posts/${id}`));
-            alert("삭제완료");
+            alert("삭제 완료");
             location.href="/posts";
         }
     });
